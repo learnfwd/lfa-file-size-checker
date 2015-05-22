@@ -23,7 +23,7 @@ function warn(file, msg) {
 }
 
 module.exports = function fileSizeChecker(lfa) {
-  lfa.task('assets:filter:file-size-checker', function (stream) {
+  lfa.task('assets:pre-write:file-size-checker', function (stream) {
     if (lfa.currentCompile.debug) {
       return stream;
     }
