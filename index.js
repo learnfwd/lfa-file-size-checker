@@ -17,12 +17,15 @@ var fileActions = {
   '\\.(mp3|ogg|aac|m4a)': { maxSize: 2000000},
 };
 
-function warn(file, msg) {
-  console.log(chalk.yellow('Warning: ') + msg);
-  console.log(chalk.blue('In file: ') + file.path);
-}
 
 module.exports = function fileSizeChecker(lfa) {
+  function warn(file, msg) {
+    var err = new Error(msg);
+    err.fileName = file.path;
+    err.nameLess = true;
+    lfa.logWarning(err);
+  }
+
   lfa.task('assets:pre-write:file-size-checker', function (stream) {
     if (lfa.currentCompile.debug) {
       return stream;
