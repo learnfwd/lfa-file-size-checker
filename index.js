@@ -13,6 +13,7 @@ var fileActions = {
     image: true,
     maxWidth: 2048,
     maxHeight: 1536,
+    noSpaces: true,
   },
   '\\.svg$': { maxSize: 1000000 },
   '\\.(mp4|m4v|ogv)': { maxSize: 10000000 },
@@ -38,6 +39,22 @@ module.exports = function fileSizeChecker(lfa) {
 
   var fixes = [];
 
+  function renameAsset(assetsPath, from, to) {
+    var relativeFromPath = path.relative(assetsPath, from);
+    var relativeToPath = path.relative(assetsPath, to);
+
+    var escapedRelativeFromPath = relativeFromPath.replace(/(\/|\.)/g, '\\\\$1');
+    var escapedRelativeToPath = relativeToPath.replace(/(\/)/g, '\\\\$1');
+
+    var textPath = path.join(lfa.config.projectPath, 'text');
+    var stylesPath = path.join(lfa.config.projectPath, 'styles');
+    var jsPath = path.join(lfa.config.projectPath, 'js');
+
+    fixes.push('find "' + textPath + '" -type f \\( -name "*.jade" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
+    fixes.push('find "' + stylesPath + '" -type f \\( -name "*.styl" -or -name "*.css" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
+    fixes.push('find "' + jsPath + '" -type f \\( -name "*.js" -or -name "*.jsx" -or -name "*.json" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
+  }
+
   function applyFix(file, fix) {
     if (!fix) { return; }
 
@@ -53,23 +70,18 @@ module.exports = function fileSizeChecker(lfa) {
 
     if (fix === 'tojpg') {
       var jpegPath = fileName.replace(/\.png$/, '.jpg');
-      var relativePath = path.relative(assetsPath, fileName);
-      var relativeJpegPath= relativePath.replace(/\.png$/, '.jpg');
-      var escapedRelativePath = relativePath.replace(/(\/|\.)/g, '\\\\$1');
-      var escapedRelativeJpegPath = relativeJpegPath.replace(/(\/)/g, '\\\\$1');
-
-      var textPath = path.join(lfa.config.projectPath, 'text');
-      var stylesPath = path.join(lfa.config.projectPath, 'styles');
-      var jsPath = path.join(lfa.config.projectPath, 'js');
-
       fixes.push('gm convert "' + fileName + '" "' + jpegPath + '"');
       fixes.push('rm "' + fileName + '"');
-      fixes.push('find "' + textPath + '" -type f \\( -name "*.jade" \\) -exec sed -i "" "s/' + escapedRelativePath + '/' + escapedRelativeJpegPath + '/g" {} \\;');
-      fixes.push('find "' + stylesPath + '" -type f \\( -name "*.styl" -or -name "*.css" \\) -exec sed -i "" "s/' + escapedRelativePath + '/' + escapedRelativeJpegPath + '/g" {} \\;');
-      fixes.push('find "' + jsPath + '" -type f \\( -name "*.js" -or -name "*.jsx" -or -name "*.json" \\) -exec sed -i "" "s/' + escapedRelativePath + '/' + escapedRelativeJpegPath + '/g" {} \\;');
+      renameAsset(assetsPath, fileName, jpegPath);
       return;
     }
 
+    if (fix === 'nospace') {
+      var newName = fileName.replace(/ /g, '_');
+      fixes.push('mv "' + fileName + '" "' + newName + '"');
+      renameAsset(assetsPath, fileName, newName);
+      return;
+    }
   }
 
   lfa.task('assets:pre-write:file-size-checker', function (stream) {
@@ -97,6 +109,11 @@ module.exports = function fileSizeChecker(lfa) {
         if (options.maxSize && file.stat.size >= options.maxSize) {
           tooBig = true;
           warn(file, 'File size (' + file.stat.size + ') bigger than ' + options.maxSize);
+        }
+
+        if (options.noSpaces && / /.test(file.history[0])) {
+          warn(file, 'Spaces in file name');
+          fix = 'nospace';
         }
 
         return when.try(function () {
