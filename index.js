@@ -8,7 +8,7 @@ var path = require('path');
 var fs = require('fs');
 
 var fileActions = {
-  '\\.(jpe?g|png)$': { 
+  '\\.(jpe?g|png|gif)$': { 
     maxSize: 1000000,
     image: true,
     maxWidth: 2048,
