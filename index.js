@@ -40,6 +40,7 @@ module.exports = function fileSizeChecker(lfa) {
   var fixes = [];
 
   var videoRegexp = /^video\/(.*)\.(mp4|webm|ogv)$/;
+  var audioRegexp = /^audio\/(.*)\.(mp3|ogg)$/;
 
   function renameAsset(assetsPath, from, to) {
     var relativeFromPath = path.relative(assetsPath, from);
@@ -56,14 +57,16 @@ module.exports = function fileSizeChecker(lfa) {
     fixes.push('find "' + stylesPath + '" -type f \\( -name "*.styl" -or -name "*.css" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
     fixes.push('find "' + jsPath + '" -type f \\( -name "*.js" -or -name "*.jsx" -or -name "*.json" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
 
-    var match = relativeFromPath.match(videoRegexp);
-    if (match) {
-      relativeFromPath = match[1];
-      relativeToPath = relativeToPath.match(videoRegexp)[1];
-      escapedRelativeFromPath = relativeFromPath.replace(/(\/|\.)/g, '\\\\$1');
-      escapedRelativeToPath = relativeToPath.replace(/(\/)/g, '\\\\$1');
-      fixes.push('find "' + textPath + '" -type f \\( -name "*.jade" \\) -exec sed -i "" "s/' + escapedRelativeFromPath + '/' + escapedRelativeToPath + '/g" {} \\;');
-    }
+    _.each([videoRegexp, audioRegexp], function (regexp) {
+      var match = relativeFromPath.match(regexp);
+      if (match) {
+        var relativeFromPath_ = match[1];
+        var relativeToPath_ = relativeToPath.match(regexp)[1];
+        var escapedRelativeFromPath_ = relativeFromPath_.replace(/(\/|\.)/g, '\\\\$1');
+        var escapedRelativeToPath_ = relativeToPath_.replace(/(\/)/g, '\\\\$1');
+        fixes.push('find "' + textPath + '" -type f \\( -name "*.jade" \\) -exec sed -i "" "s/' + escapedRelativeFromPath_ + '/' + escapedRelativeToPath_ + '/g" {} \\;');
+      }
+    });
   }
 
   function applyFix(file, fix) {
